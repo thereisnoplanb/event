@@ -64,7 +64,7 @@ func New[TSender any, TEventArgs any]() Event[TSender, TEventArgs] {
 //
 //	handler *Handler - Returns handler to added delegate. If added delegate is nil, nil is returned.
 func (event *event[TSender, TEventArgs]) Add(delegate func(sender *TSender, eventArgs TEventArgs)) (handler *Handler) {
-	if delegate != nil {
+	if event != nil && delegate != nil {
 		event.mutex.Lock()
 		defer event.mutex.Unlock()
 		event.index++
@@ -82,10 +82,11 @@ func (event *event[TSender, TEventArgs]) Add(delegate func(sender *TSender, even
 //
 //	handler *Handler - Handler to delegate, received in Add(delegate func(sender *TSender, eventArgs TEventArgs)) method.
 func (event *event[TSender, TEventArgs]) Remove(handler *Handler) {
-	if handler != nil {
+	if event != nil && handler != nil {
 		event.mutex.Lock()
 		defer event.mutex.Unlock()
 		delete(event.delegates, handler.index)
+		handler.index = 0
 	}
 }
 
@@ -96,10 +97,12 @@ func (event *event[TSender, TEventArgs]) Remove(handler *Handler) {
 //
 //	sender *TSender - Object that sends event.
 //	eventArgs TEventArgs - Arguments of event.
-func (event event[TSender, TEventArgs]) Invoke(sender *TSender, eventArgs TEventArgs) {
-	event.mutex.Lock()
-	defer event.mutex.Unlock()
-	for _, delegate := range event.delegates {
-		delegate(sender, eventArgs)
+func (event *event[TSender, TEventArgs]) Invoke(sender *TSender, eventArgs TEventArgs) {
+	if event != nil {
+		event.mutex.Lock()
+		defer event.mutex.Unlock()
+		for _, delegate := range event.delegates {
+			delegate(sender, eventArgs)
+		}
 	}
 }
