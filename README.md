@@ -41,7 +41,7 @@ func main() {
 
 #### Event Interface
 The Event interface defines methods for managing events:
-- Add(delegate func(sender TSender, eventArgs TEventArgs)) (handler Handler): Adds a delegate function to the event.
+- Add(delegate EventHandler[TSender, TEventArgs]) (handler Handler): Adds a delegate function to the event.
 - Remove(handler *Handler): Removes a delegate function from the event.
 - Invoke(sender *TSender, eventArgs TEventArgs): Invokes the event.
 

@@ -14,9 +14,11 @@ type Handler struct {
 
 // Creates a new Event instance.
 //
-// Returns:
+// # Returns
 //
-//	Event[TSender, TEventArgs] - A new Event instance.
+//	Event[TSender, TEventArgs]
+//
+// A new Event instance.
 func New[TSender any, TEventArgs any]() Event[TSender, TEventArgs] {
 	return Event[TSender, TEventArgs]{
 		delegates: make(map[uint32]EventHandler[TSender, TEventArgs]),
@@ -27,14 +29,18 @@ func New[TSender any, TEventArgs any]() Event[TSender, TEventArgs] {
 
 // Adds delegate function to event.
 //
-// Parameters:
+// # Parameters
 //
-//	delegate func(sender *TSender, eventArgs TEventArgs) - Delegate function to add. If delegate is nil it is not added to event.
+//	delegate EventHandler[TSender, TEventArgs]
 //
-// Returns:
+// Delegate function to add. If delegate is nil it is not added to event.
 //
-//	handler *Handler - Returns handler to added delegate. If added delegate is nil, nil is returned.
-func (event *Event[TSender, TEventArgs]) Add(delegate func(sender *TSender, eventArgs TEventArgs)) (handler *Handler) {
+// # Returns
+//
+//	handler *Handler
+//
+// Returns handler to added delegate. If added delegate is nil, nil is returned.
+func (event *Event[TSender, TEventArgs]) Add(delegate EventHandler[TSender, TEventArgs]) (handler *Handler) {
 	if event != nil && delegate != nil {
 		event.mutex.Lock()
 		defer event.mutex.Unlock()
@@ -49,9 +55,11 @@ func (event *Event[TSender, TEventArgs]) Add(delegate func(sender *TSender, even
 
 // Removes delegate function from event.
 //
-// Parameters:
+// # Parameters
 //
-//	handler *Handler - Handler to delegate, received in Add(delegate func(sender *TSender, eventArgs TEventArgs)) method.
+//	handler *Handler
+//
+// Handler to delegate, received in Add(delegate func(sender *TSender, eventArgs TEventArgs)) method.
 func (event *Event[TSender, TEventArgs]) Remove(handler *Handler) {
 	if event != nil && handler != nil {
 		event.mutex.Lock()
@@ -64,10 +72,15 @@ func (event *Event[TSender, TEventArgs]) Remove(handler *Handler) {
 // Invokes event.
 // Every added delegate is invoked in indeterminate order, not necessarily in the order of addition.
 //
-// Parameters:
+// # Parameters
 //
-//	sender *TSender - Object that sends event.
-//	eventArgs TEventArgs - Arguments of event.
+//	sender *TSender
+//
+// Object that sends event.
+//
+//	eventArgs TEventArgs
+//
+// Arguments of event.
 func (event *Event[TSender, TEventArgs]) Invoke(sender *TSender, eventArgs TEventArgs) {
 	if event != nil {
 		event.mutex.Lock()
