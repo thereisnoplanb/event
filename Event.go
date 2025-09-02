@@ -1,92 +1,134 @@
 package event
 
-import "sync"
+import (
+	"sync"
 
-type Event[TSender any, TEventArgs any] struct {
-	delegates map[uint32]EventHandler[TSender, TEventArgs]
-	index     uint32
-	mutex     *sync.Mutex
+	"github.com/google/uuid"
+)
+
+type Handler[TSender any, TEventArgs any] func(sender *TSender, eventArgs TEventArgs)
+type Invoke[TSender any, TEventArgs any] func(sender *TSender, eventArgs TEventArgs)
+
+type Event[TSender any, TEventArgs any] interface {
+	// Adds a handler function to the event.
+	//
+	// # Parameters
+	//
+	//	handler func(sender *TSender, eventArgs TEventArgs)
+	//
+	// The handler function to add.
+	//
+	// # Returns
+	//
+	//	handle *Handle
+	//
+	// Returns the handle to the added handler function.
+	// Handle can be used to remove the handler function from the event.
+	// See the Remove() method.
+	Add(handler Handler[TSender, TEventArgs]) (handle *Handle)
+
+	// Removes the handler function from the event.
+	//
+	// # Parameters
+	//
+	//	handle *Handle
+	//
+	// Handle to the handler function received in the Add() method.
+	Remove(handle *Handle)
 }
 
-type Handler struct {
-	index uint32
+type event[TSender any, TEventArgs any] struct {
+	handlers map[uuid.UUID]Handler[TSender, TEventArgs]
+	mutex    *sync.Mutex
 }
+
+type Handle struct {
+	uuid uuid.UUID
+}
+
+type EmptyEventArgs struct{}
 
 // Creates a new Event instance.
 //
 // # Returns
 //
-//	Event[TSender, TEventArgs]
+//	event Event[TSender, TEventArgs]
 //
 // A new Event instance.
-func New[TSender any, TEventArgs any]() Event[TSender, TEventArgs] {
-	return Event[TSender, TEventArgs]{
-		delegates: make(map[uint32]EventHandler[TSender, TEventArgs]),
-		index:     0,
-		mutex:     &sync.Mutex{},
+//
+//	invoke Invoke[TSender, TEventArgs]
+//
+// A function to invoke the event.
+func New[TSender any, TEventArgs any]() (_event Event[TSender, TEventArgs], invoke Invoke[TSender, TEventArgs]) {
+	event := &event[TSender, TEventArgs]{
+		handlers: make(map[uuid.UUID]Handler[TSender, TEventArgs]),
+		mutex:    &sync.Mutex{},
 	}
+	return event, event.invoke
 }
 
-// Adds delegate function to event.
+// Adds a handler function to the event.
 //
 // # Parameters
 //
-//	delegate EventHandler[TSender, TEventArgs]
+//	handler func(sender *TSender, eventArgs TEventArgs)
 //
-// Delegate function to add. If delegate is nil it is not added to event.
+// The handler function to add.
 //
 // # Returns
 //
-//	handler *Handler
+//	handle *Handle
 //
-// Returns handler to added delegate. If added delegate is nil, nil is returned.
-func (event *Event[TSender, TEventArgs]) Add(delegate EventHandler[TSender, TEventArgs]) (handler *Handler) {
-	if event != nil && delegate != nil {
-		event.mutex.Lock()
-		defer event.mutex.Unlock()
-		event.index++
-		event.delegates[event.index] = delegate
-		return &Handler{
-			index: event.index,
-		}
+// Returns the handle to the added handler function.
+// Handle can be used to remove the handler function from the event.
+// See the Remove() method.
+func (event *event[TSender, TEventArgs]) Add(handler Handler[TSender, TEventArgs]) (handle *Handle) {
+	if handler == nil {
+		return nil
 	}
-	return nil
+	event.mutex.Lock()
+	defer event.mutex.Unlock()
+	uuid := uuid.New()
+	event.handlers[uuid] = handler
+	return &Handle{
+		uuid: uuid,
+	}
 }
 
-// Removes delegate function from event.
+// Removes the handler function from the event.
 //
 // # Parameters
 //
-//	handler *Handler
+//	handle *Handle
 //
-// Handler to delegate, received in Add(delegate func(sender *TSender, eventArgs TEventArgs)) method.
-func (event *Event[TSender, TEventArgs]) Remove(handler *Handler) {
-	if event != nil && handler != nil {
+// Handle to the handler function. Received in the Add() method.
+func (event *event[TSender, TEventArgs]) Remove(handle *Handle) {
+	if handle != nil && handle.uuid != uuid.Nil {
 		event.mutex.Lock()
 		defer event.mutex.Unlock()
-		delete(event.delegates, handler.index)
-		handler.index = 0
+		delete(event.handlers, handle.uuid)
+		handle.uuid = uuid.Nil
 	}
 }
 
-// Invokes event.
-// Every added delegate is invoked in indeterminate order, not necessarily in the order of addition.
+// Invokes the event.
+// Any non-nil handler function added is called in an unspecified order, not necessarily in the order they were added.
 //
 // # Parameters
 //
 //	sender *TSender
 //
-// Object that sends event.
+// A pointer to the event invoker.
 //
 //	eventArgs TEventArgs
 //
-// Arguments of event.
-func (event *Event[TSender, TEventArgs]) Invoke(sender *TSender, eventArgs TEventArgs) {
-	if event != nil {
-		event.mutex.Lock()
-		defer event.mutex.Unlock()
-		for _, delegate := range event.delegates {
-			delegate(sender, eventArgs)
+// A TEventArgs that contains the event data.
+func (event *event[TSender, TEventArgs]) invoke(sender *TSender, eventArgs TEventArgs) {
+	event.mutex.Lock()
+	defer event.mutex.Unlock()
+	for _, handler := range event.handlers {
+		if handler != nil {
+			handler(sender, eventArgs)
 		}
 	}
 }
